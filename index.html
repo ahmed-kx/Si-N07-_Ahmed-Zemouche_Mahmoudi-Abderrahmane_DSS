@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Railway Trip Management</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="hero">
+        <p class="eyebrow">UMBB - DSS Project</p>
+        <h1>Railway Trip Management</h1>
+        <p class="hero-text">
+            Flask web application built from <code>transport.xml</code> with DOM for trip details
+            and ElementTree for filtering and statistics.
+        </p>
+        <div class="hero-links">
+            <a href="/">Reset Filters</a>
+            <a href="transport.xml" target="_blank">Open XML + XSLT</a>
+        </div>
+    </header>
+
+    <main class="layout">
+        <section class="card">
+            <h2>Search a Trip by Code</h2>
+            <p>This section uses <strong>DOM</strong> to display the complete information of one trip.</p>
+            <form method="get" class="form-grid">
+                <label>
+                    Trip code
+                    <input type="text" name="trip_code" value="{{ filters.trip_code }}" placeholder="Example: T102">
+                </label>
+                <div class="actions">
+                    <button type="submit">Search Trip</button>
+                </div>
+            </form>
+
+            {% if filters.trip_code %}
+                {% if searched_trip %}
+                    <div class="result-card result-highlight">
+                        <h3>Trip {{ searched_trip.trip_code }}</h3>
+                        <p><strong>Line:</strong> {{ searched_trip.line_code }}</p>
+                        <p><strong>Route:</strong> {{ searched_trip.departure_city }} -> {{ searched_trip.arrival_city }}</p>
+                        <p><strong>Type:</strong> {{ searched_trip.trip_type }}</p>
+                        <p><strong>Schedule:</strong> {{ searched_trip.departure_time }} - {{ searched_trip.arrival_time }}</p>
+                        <p><strong>Days:</strong> {{ searched_trip.days }}</p>
+                        <p><strong>Price range:</strong> {{ searched_trip.min_price }} DZD - {{ searched_trip.max_price }} DZD</p>
+
+                        <div class="class-list">
+                            {% for class_item in searched_trip.classes %}
+                                <span>{{ class_item.type }}: {{ class_item.price }} DZD</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% else %}
+                    <p class="empty-state">No trip was found for the code <strong>{{ filters.trip_code }}</strong>.</p>
+                {% endif %}
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>Filter Trips</h2>
+            <p>This section uses the XML data to filter by cities, train type, and maximum price.</p>
+
+            <form method="get" class="form-grid">
+                <input type="hidden" name="trip_code" value="{{ filters.trip_code }}">
+
+                <label>
+                    Departure city
+                    <select name="departure">
+                        <option value="">All departure cities</option>
+                        {% for city in station_names %}
+                            <option value="{{ city }}" {% if filters.departure == city %}selected{% endif %}>{{ city }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+
+                <label>
+                    Arrival city
+                    <select name="arrival">
+                        <option value="">All arrival cities</option>
+                        {% for city in station_names %}
+                            <option value="{{ city }}" {% if filters.arrival == city %}selected{% endif %}>{{ city }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+
+                <label>
+                    Train type
+                    <select name="train_type">
+                        <option value="">All train types</option>
+                        {% for type_name in train_types %}
+                            <option value="{{ type_name }}" {% if filters.train_type == type_name %}selected{% endif %}>{{ type_name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+
+                <label>
+                    Maximum price
+                    <input type="number" name="max_price" value="{{ filters.max_price }}" min="0" placeholder="Example: 1200">
+                </label>
+
+                <div class="actions">
+                    <button type="submit">Apply Filters</button>
+                </div>
+            </form>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Trip</th>
+                            <th>Line</th>
+                            <th>Route</th>
+                            <th>Type</th>
+                            <th>Schedule</th>
+                            <th>Days</th>
+                            <th>Classes</th>
+                            <th>Price Range</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trip in filtered_trips %}
+                            <tr>
+                                <td>{{ trip.trip_code }}</td>
+                                <td>{{ trip.line_code }}</td>
+                                <td>{{ trip.departure_city }} -> {{ trip.arrival_city }}</td>
+                                <td>{{ trip.trip_type }}</td>
+                                <td>{{ trip.departure_time }} - {{ trip.arrival_time }}</td>
+                                <td>{{ trip.days }}</td>
+                                <td>
+                                    {% for class_item in trip.classes %}
+                                        <span class="pill">{{ class_item.type }}: {{ class_item.price }} DZD</span>
+                                    {% endfor %}
+                                </td>
+                                <td>{{ trip.min_price }} - {{ trip.max_price }} DZD</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if not filtered_trips %}
+                <p class="empty-state">No trips match the selected filters.</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>Statistics with ElementTree</h2>
+            <p>
+                The statistics below are calculated from the XML file using <strong>ElementTree</strong>,
+                exactly as required in the project statement.
+            </p>
+
+            <div class="stats-grid">
+                <div class="sub-card">
+                    <h3>Trips Count by Train Type</h3>
+                    <ul class="stat-list">
+                        {% for trip_type, count in trip_type_counts.items() %}
+                            <li><strong>{{ trip_type }}</strong>: {{ count }} trips</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="sub-card">
+                    <h3>Cheapest and Most Expensive Trip for Each Line</h3>
+                    <div class="line-stats">
+                        {% for line in line_statistics %}
+                            <article class="line-card">
+                                <h4>{{ line.line_code }} - {{ line.departure_city }} -> {{ line.arrival_city }}</h4>
+                                <p>
+                                    <strong>Cheapest trip:</strong>
+                                    {{ line.cheapest_trip.trip_code }} ({{ line.cheapest_trip.trip_type }})
+                                    - from {{ line.cheapest_trip.min_price }} DZD
+                                </p>
+                                <p>
+                                    <strong>Most expensive trip:</strong>
+                                    {{ line.most_expensive_trip.trip_code }} ({{ line.most_expensive_trip.trip_type }})
+                                    - up to {{ line.most_expensive_trip.max_price }} DZD
+                                </p>
+                            </article>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
